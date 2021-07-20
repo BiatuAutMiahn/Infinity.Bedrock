@@ -1,6 +1,3 @@
 [submodule "Infinity"]
 	path = Infinity
 	url = https://github.com/BiatuAutMiahn/Infinity.System
-[submodule "Infinity.System"]
-	path = Infinity.System
-	url = https://github.com/BiatuAutMiahn/Infinity.System
