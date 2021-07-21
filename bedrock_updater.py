@@ -27,6 +27,8 @@ devices={}
 adb=None
 
 def _UpdateServer():
+	global logging
+	global node
 	try:
 		modules=node.getModules()
 		if not 'bedrock_server' in modules:
@@ -85,6 +87,7 @@ def _UpdateServer():
 		with ZipFile("server_update.zip",'r') as zip:
 			zip.extractall()
 		logging.info("["+node.name+"]:\tFinished Update")
+		os.chmod('bedrock_server',0o744)
 		node.minecraft_version['current']=v
 		node.minecraft_version['tstamp']=datetime.datetime.now().astimezone().isoformat()
 	    # Update Version File
@@ -174,7 +177,7 @@ def __init__(n,l):
 	    with open('mc_ver.json','r') as f:
 	        node.minecraft_version=json.load(f)
 	except:
-	    node.minecraft_version={'current':None,'latest':None,'tstamp':None}
+	    node.minecraft_version={'current':'0.0.0.0','latest':'255.255.255.255','tstamp':None}
 	node.gpc=gplaycli.GPlaycli()
 	node.gpc.token_enable = False
 	node.gpc.gmail_address="MegaGamerNet@gmail.com"

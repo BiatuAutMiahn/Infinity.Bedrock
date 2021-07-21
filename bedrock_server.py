@@ -51,12 +51,13 @@ def _pIn():
 
 # Starts the minecraft server
 def _start():
+    global node
     if node.proc==None:
         logging.info("["+node.name+"]:\tStarting Bedrock Server")
         node.killio=False
         #node.thIO['stdin']=threading.Thread(target=_pIn)
         node.thIO['stdout']=threading.Thread(target=_pOut)
-        node.proc=Popen([cwd+os.path.sep+'bedrock_server'], stdout=PIPE, stdin=PIPE, stderr=STDOUT, universal_newlines=True,cwd=cwd)
+        node.proc=Popen([node.server_path], stdout=PIPE, stdin=PIPE, stderr=STDOUT, universal_newlines=True,cwd=cwd)
         node.stdin=[]
         node.stdout=[]
         node.users={}
@@ -71,6 +72,9 @@ def _start():
         node.thIO['stdout'].start()
         version=_watch('\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} INFO\] Version (.*)')
         _watch('\[INFO\] Server started\.')
+        if node.killio:
+            logging.info("["+node.name+"]:\tBedrock Server Crashed")
+            return False
         node.ready=True
         logging.info("["+node.name+"]:\tBedrock Server Started, Version: %s",version)
         return True
@@ -92,10 +96,17 @@ def _cmd(c,a=None,rt=0):
 # Awaits stdout to match regex pattern
 def _watch(r,t=0):
     global nLine
+    global node
     while True:
+        if node.killio:
+            _stop(force=True)
+            break
         stdout=node.stdout.copy()
         if nLine<len(stdout):
             for l in stdout[nLine:]:
+                if l=="Crash":
+                    _stop(force=True)
+                    break
                 if t==0:
                     m=re.search(r,l)
                     if m:
@@ -111,6 +122,8 @@ def _watch(r,t=0):
 
 # Requests server shutdown
 def _stop(force=False):
+    if not node.ready and not force:
+        return
     logging.info("["+node.name+"]:\tStopping Bedrock Server")
     if node.proc!=None:
         if not force:
@@ -153,6 +166,7 @@ def __init__(n,l):
     node.killio=False
     node.users={}
     node.watchers={'user_watch':[0,0]}
+    node.server_path=cwd+os.path.sep+'bedrock_server'
     _start()
     logging.info("["+node.name+"]:\tInitialized")
 
