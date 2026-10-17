@@ -12,6 +12,10 @@ node=None
 logging=None
 cwd=os.path.abspath('.')
 nLine=0
+re_match_log_tStamp='\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}:\d{3}'
+re_match_log_info = '\['+re_match_log_tStamp+' INFO\] '
+
+
 
 def _pOut():
     global node
@@ -49,49 +53,8 @@ def _pIn():
                 node.stdin.remove(s)
             time.sleep(0.05)
 
-# Starts the minecraft server
-def _start():
-    global node
-    if node.proc==None:
-        logging.info("["+node.name+"]:\tStarting Bedrock Server")
-        node.killio=False
-        #node.thIO['stdin']=threading.Thread(target=_pIn)
-        node.thIO['stdout']=threading.Thread(target=_pOut)
-        node.proc=Popen([node.server_path], stdout=PIPE, stdin=PIPE, stderr=STDOUT, universal_newlines=True,cwd=cwd)
-        node.stdin=[]
-        node.stdout=[]
-        node.users={}
-        if os.path.isfile('users.json'):
-            with open('users.json','r') as f:
-                node.users=json.load(f)
-            for v in node.users.keys():
-                node.users[v]['is_online']=False
-        node.watchers={'user_watch':[0,0]}
-        time.sleep(2)
-        # node.thIO['stdin'].start()
-        node.thIO['stdout'].start()
-        version=_watch('\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} INFO\] Version (.*)')
-        _watch('\[INFO\] Server started\.')
-        if node.killio:
-            logging.info("["+node.name+"]:\tBedrock Server Crashed")
-            return False
-        node.ready=True
-        logging.info("["+node.name+"]:\tBedrock Server Started, Version: %s",version)
-        return True
-    return False
 
-# Sends a command to stdin
-def _cmd(c,a=None,rt=0):
-    global node
-    # await=regexp response
-    node.stdin.append(c)
-    for s in node.stdin.copy():
-        node.proc.stdin.write(s+'\n')
-        node.proc.stdin.flush()
-        node.stdin.remove(s)
-    if a==None:
-        return
-    return _watch(a,rt)
+
 
 # Awaits stdout to match regex pattern
 def _watch(r,t=0):
@@ -116,9 +79,57 @@ def _watch(r,t=0):
                     if m:
                         return m
                 elif t==2:
-                    return re.findall(r,l)
+                    m=re.findall(r,l)
+                    if m:
+                        return m
             nLine=len(stdout)
         time.sleep(1)
+        
+# Starts the minecraft server
+def _start():
+    global node
+    if node.proc==None:
+        logging.info("["+node.name+"]:\tStarting Bedrock Server")
+        node.killio=False
+        #node.thIO['stdin']=threading.Thread(target=_pIn)
+        node.thIO['stdout']=threading.Thread(target=_pOut)
+        node.proc=Popen([node.server_path], stdout=PIPE, stdin=PIPE, stderr=STDOUT, universal_newlines=True,cwd=cwd)
+        node.stdin=[]
+        node.stdout=[]
+        node.users={}
+        if os.path.isfile('users.json'):
+            with open('users.json','r') as f:
+                node.users=json.load(f)
+            for v in node.users.keys():
+                node.users[v]['is_online']=False
+        node.watchers={'user_watch':[0,0]}
+        time.sleep(2)
+        # node.thIO['stdin'].start()
+        node.thIO['stdout'].start()
+        node.version=_watch(re_match_log_info+'Version: (.*)',2)[0]
+        _watch(re_match_log_info+'Server started\.')
+        if node.killio:
+            logging.info("["+node.name+"]:\tBedrock Server Crashed")
+            return False
+        node.ready=True
+        logging.info("["+node.name+"]:\tBedrock Server Started, Version: %s",node.version)
+        return True
+    return False
+
+# Sends a command to stdin
+def _cmd(c,a=None,rt=0):
+    global node
+    # await=regexp response
+    node.stdin.append(c)
+    for s in node.stdin.copy():
+        node.proc.stdin.write(s+'\n')
+        node.proc.stdin.flush()
+        node.stdin.remove(s)
+    if a==None:
+        return
+    return _watch(a,rt)
+
+
 
 # Requests server shutdown
 def _stop(force=False):
@@ -193,7 +204,7 @@ def __loop__(self):
         oLine=node.watchers['user_watch'][1]
         if oLine<len(stdout):
             for l in stdout[oLine:]:
-                    m=re.match('\[INFO\] Player disconnected: ([^,]*), xuid: (.+)$',l)
+                    m=re.match(re_match_log_info+'Player disconnected: ([^,]*), xuid: (.+)$',l)
                     if m is not None:
                         m=list(m.groups())
                         td=datetime.datetime.now().astimezone().isoformat()
@@ -203,7 +214,7 @@ def __loop__(self):
                         with open('users.json','w') as f:
                             json.dump(node.users,f)
                         continue
-                    m=re.match('\[INFO\] Player connected: ([^,]*), xuid: (.+)$',l)
+                    m=re.match(re_match_log_info+'Player connected: ([^,]*), xuid: (.+)$',l)
                     if m is not None:
                         m=list(m.groups())
                         print(m)

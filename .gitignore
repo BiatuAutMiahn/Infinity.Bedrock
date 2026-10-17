@@ -163,3 +163,13 @@ resource_packs/
 structures/
 
 worlds/
+
+users.json
+
+allowlist.json
+
+invalid_known_packs.json
+
+packet-statistics.txt
+
+Update/
